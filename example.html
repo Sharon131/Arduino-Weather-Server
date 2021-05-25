@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Sensors readings</title>
+    <script type="text/javascript">
+           
+      function draw() {
+        var canvas = document.getElementById('plot');
+
+        var values = [10, 5, 3, 8, 10, 5, 5, 6, 7];
+        var lines = values.length;
+        var max_value = Math.floor(Math.max(...values));
+        var min_value = Math.min(...values)
+        var frag = canvas.clientWidth / (lines-1);
+        var scale = canvas.clientHeight;
+
+        canvas.style.width = 300;
+        canvas.style.height = 150;
+        if (canvas.getContext) {
+          var ctx = canvas.getContext('2d');
+
+          ctx.moveTo(0, 0);
+          for (var i = 1; i <= lines; i++) {
+            ctx.lineTo((i-1)*frag, scale - values[i-1]*scale/(max_value+1));
+          }
+          ctx.stroke();
+        }
+        
+        for (var i=0;i<lines;i++) {
+          var node = document.createElement("small");
+          node.innerHTML = i;
+          node.id = 'sample_' + String(i);
+          node.style.position = "relative";
+          node.style.left = String((frag-7)*i) + "px";
+          document.getElementById("samples").appendChild(node); 
+        }
+        var node1 = document.createElement("br");
+        document.getElementById("samples").appendChild(node1); 
+        var node2 = document.createElement("small");
+        node2.style.marginLeft = String(canvas.clientWidth/2 - 20) + "px";
+        node2.innerHTML = "Sample number";
+        document.getElementById("samples").appendChild(node2);
+        document.getElementById('sample_0').style.marginLeft = "22px";
+
+        for (var i=0;i<=max_value;i+=2) {
+          var node = document.createElement("small");
+          node.innerHTML = max_value - i;
+          node.id = 'value_' + String(i/2);
+          node.style.position = "relative";
+          node.style.left = "20px";
+          node.style.top = String((i*3/5)*scale/(max_value+1)+10) + "px"
+          document.getElementById("values").appendChild(node); 
+          document.getElementById("values").appendChild(document.createElement("br"));
+        }
+      }
+
+    </script>
+    <style type="text/css">
+      canvas { border: 1px solid black;
+               margin-left: 25px; }
+    </style>
+  </head>
+  <body onload="draw();">
+    <h4 style="margin-left: 50px">PM2.5 readings</h4>
+    <div id="values" style="float:left; margin-left: 5px">
+    </div>
+    <canvas id="plot" width="500" height="250"></canvas><br>
+    <div id="samples" style="float: left; margin-left: 20px;">
+    </div>
+    
+  </body>
+</html>
