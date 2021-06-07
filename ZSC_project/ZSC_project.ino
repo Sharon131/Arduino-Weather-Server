@@ -5,12 +5,12 @@
 #include <Ethernet.h>
 #include <SD.h>
 
-#define FIXED_POINT_ACCURACY  1000
-#define SHTC3_MAX_VALUE       65535
+//#define FIXED_POINT_ACCURACY  1000
+//#define SHTC3_MAX_VALUE       65535
 
 #define ZPH01_MSG_LEN       9
 #define ZPH01_VALUES_NO     10
-
+#define ZPH01_DATA_LEN      6
 
 #define ZP01_A_PIN          4
 #define ZP01_B_PIN          5
@@ -21,15 +21,14 @@
 
 #define FILE_MAX_SAMPLES_NO  10
 
-#define ZPH01_DATA_LEN      6
 
 uint8_t SHTC3_MEAS_COMM[SHTC3_MSG_LEN]= {0x7C, 0xA2};
 
-int ZP01_value;
+uint8_t ZP01_value;
 
 SoftwareSerial ZPH01_serial(2, 3);  // RX, TX
 //uint8_t SHTC3_buffer[SHTC3_MSG_LEN];
-char buffer[30];
+char buffer[15];
 
 byte mac[] = {
   0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED
@@ -38,7 +37,9 @@ byte mac[] = {
 IPAddress ip(192, 168, 31, 177);
 EthernetServer server(80);
 
-char* fileName = "sensdata/ZPH01.txt";
+char* ZPH01_fileName = "sensdata/ZPH01.txt";
+char* ZP01_fileName = "sensdata/ZP01.txt";
+
 uint8_t fileIndex = 0;
 
 uint8_t ZPH01DV_checksum_correct(uint8_t* gotten_msg)
@@ -58,6 +59,19 @@ uint8_t ZPH01DV_checksum_correct(uint8_t* gotten_msg)
   }
 }
 
+void writeReadingToFile(char* fileName, char* data, uint8_t dataLen) {
+  File file = SD.open(fileName, O_WRITE | O_CREAT);
+  if (file) {
+    file.seek(fileIndex*dataLen);
+    file.println(data);
+    file.close();
+    fileIndex = (fileIndex+1)%FILE_MAX_SAMPLES_NO;
+  } else {
+    Serial.print("ESDZPH01 ");
+    Serial.println(fileName);
+  }
+}
+
 void readSensors(void)
 {
   if (ZPH01_serial.available() > 0)
@@ -68,16 +82,8 @@ void readSensors(void)
     {
       char ZPH01_value[6];
       sprintf(ZPH01_value, "%u.%02u", ZPH01_buffer[3], ZPH01_buffer[4]);
-
-      File file = SD.open(fileName, O_WRITE | O_CREAT);
-      if (file) {
-        file.seek(fileIndex*ZPH01_DATA_LEN);
-        file.println(ZPH01_value);
-        file.close();
-        fileIndex = (fileIndex+1)%FILE_MAX_SAMPLES_NO;
-      } else {
-        Serial.print("ESDZPH01 ");
-      }
+      
+      writeReadingToFile(ZPH01_fileName, ZPH01_value, ZPH01_DATA_LEN);
       
       // read from ZP01
 //      int val1 = digitalRead(ZP01_A_PIN);
@@ -119,6 +125,37 @@ void readSensors(void)
       Serial.println("ERZ");
     }
   }
+}
+
+void sendReadingsFromFileToEthernet(EthernetClient client, char* fileName, uint8_t dataLen) {
+  File myFile = SD.open(fileName);
+  if (myFile) {
+    myFile.seek(fileIndex*dataLen);
+    while (myFile.available()) {
+      char read = myFile.read();
+      if (read != '\r' && read != '\n') {
+        client.print((char)read);
+      } else if (read != '\n'){
+        client.print(",");  
+      }
+    }
+    myFile.seek(0);
+    uint8_t counter = 0;
+    while (myFile.available() && counter < (fileIndex)*dataLen-2) {
+      char read = myFile.read();
+      if (read != '\r' && read != '\n') {
+        client.print((char)read);
+      } else if (read != '\n'){
+        client.print(",");  
+      }
+      counter++;
+    }
+    myFile.close();
+  } else {
+    client.print("0,0,0,0,0");
+    Serial.print("ERF1 ");
+    Serial.println(fileName);
+  }  
 }
 
 void setup() {
@@ -179,34 +216,7 @@ void loop() {
             }
             myFile.close();
 
-            myFile = SD.open(fileName);
-            if (myFile) {
-              myFile.seek(fileIndex*ZPH01_DATA_LEN);
-              while (myFile.available()) {
-                char read = myFile.read();
-                if (read != '\r' && read != '\n') {
-                  client.print((char)read);
-                } else if (read != '\n'){
-                  client.print(",");  
-                }
-              }
-              myFile.seek(0);
-              unsigned int counter = 0;
-              while (myFile.available() && counter < (fileIndex)*ZPH01_DATA_LEN-2) {
-                char read = myFile.read();
-                if (read != '\r' && read != '\n') {
-                  client.print((char)read);
-                } else if (read != '\n'){
-                  client.print(",");  
-                }
-                counter++;
-              }
-              myFile.close();
-            } else {
-              client.print("0,0,0,0,0");
-              Serial.print("ERF1 ");
-              Serial.println(fileName);
-            }
+            sendReadingsFromFileToEthernet(client, ZPH01_fileName, ZPH01_DATA_LEN);
             
             myFile = SD.open("index2.txt");
             if (myFile) {
@@ -224,18 +234,7 @@ void loop() {
 //            client.print(ZP01_value);
 //            client.println("</div /><br />");
 //            client.println("  </body>\n</html>");
-//            myFile = SD.open("index2.txt");
-//            if (myFile) {
-//              while (myFile.available()) {
-//              char read = myFile.read();
-//              Serial.write(read);
-//              client.print((char)read);
-//            }
-//              // close the file:
-//              myFile.close();  
-//            }
           } else {
-            // if the file didn't open, print an error:
             Serial.println("ERST");
           }
 //          client.println("<html>");
@@ -270,7 +269,7 @@ void loop() {
     }
     delay(1);
     client.stop();
-    Serial.println("DISC");
+    Serial.println("DCN");
   }
   else
   {
