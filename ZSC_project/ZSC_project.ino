@@ -21,6 +21,8 @@
 
 #define FILE_MAX_SAMPLES_NO  10
 
+#define ZPH01_DATA_LEN      6
+
 uint8_t SHTC3_MEAS_COMM[SHTC3_MSG_LEN]= {0x7C, 0xA2};
 
 int ZP01_value;
@@ -36,7 +38,7 @@ byte mac[] = {
 IPAddress ip(192, 168, 31, 177);
 EthernetServer server(80);
 
-char* fileName = "sensdata/000_ZPH01.txt";
+char* fileName = "sensdata/ZPH01.txt";
 uint8_t fileIndex = 0;
 
 uint8_t ZPH01DV_checksum_correct(uint8_t* gotten_msg)
@@ -67,16 +69,14 @@ void readSensors(void)
       char ZPH01_value[6];
       sprintf(ZPH01_value, "%u.%02u", ZPH01_buffer[3], ZPH01_buffer[4]);
 
-      fileName[11] = fileIndex+48;
-
-      File file = SD.open(fileName, O_WRITE | O_CREAT | O_TRUNC);
+      File file = SD.open(fileName, O_WRITE | O_CREAT);
       if (file) {
+        file.seek(fileIndex*ZPH01_DATA_LEN);
         file.println(ZPH01_value);
         file.close();
         fileIndex = (fileIndex+1)%FILE_MAX_SAMPLES_NO;
       } else {
-        Serial.print("SD write error");
-        Serial.println(fileName);
+        Serial.print("ESDZPH01 ");
       }
       
       // read from ZP01
@@ -116,7 +116,7 @@ void readSensors(void)
     }
     else
     {
-      Serial.print("Error receiving ZPH01 data\r\n");
+      Serial.println("ERZ");
     }
   }
 }
@@ -136,18 +136,17 @@ void setup() {
   Ethernet.init(10);
   Ethernet.begin(mac, ip);
   
-  Serial.println("Hello!");
   if (Ethernet.hardwareStatus() == EthernetNoHardware) {
-    Serial.println("ETH no shield");
+    Serial.println("ETH1");
     while (true) {
       delay(1);
     }
   }
   if (Ethernet.linkStatus() == LinkOFF) {
-    Serial.println("ETH no cable");
+    Serial.println("ETH2");
   }
   if (!SD.begin(4)) {
-    Serial.println("SD init error");
+    Serial.println("SD1");
     while (1);
   }
   
@@ -161,7 +160,7 @@ void loop() {
 
   EthernetClient client = server.available();
   if (client) {
-    Serial.println("new client");
+    Serial.println("CN");
     // an http request ends with a blank line
     boolean currentLineIsBlank = true;
     while (client.connected()) {
@@ -178,13 +177,53 @@ void loop() {
               char read = myFile.read();
               client.print((char)read);
             }
-            // close the file:
             myFile.close();
-            client.println("<br /><div />");
-            client.print("ZP01 read value: ");
-            client.print(ZP01_value);
-            client.println("</div /><br />");
-            client.println("  </body>\n</html>");
+
+            myFile = SD.open(fileName);
+            if (myFile) {
+              myFile.seek(fileIndex*ZPH01_DATA_LEN);
+              while (myFile.available()) {
+                char read = myFile.read();
+                if (read != '\r' && read != '\n') {
+                  client.print((char)read);
+                } else if (read != '\n'){
+                  client.print(",");  
+                }
+              }
+              myFile.seek(0);
+              unsigned int counter = 0;
+              while (myFile.available() && counter < (fileIndex)*ZPH01_DATA_LEN-2) {
+                char read = myFile.read();
+                if (read != '\r' && read != '\n') {
+                  client.print((char)read);
+                } else if (read != '\n'){
+                  client.print(",");  
+                }
+                counter++;
+              }
+              myFile.close();
+            } else {
+              client.print("0,0,0,0,0");
+              Serial.print("ERF1 ");
+              Serial.println(fileName);
+            }
+            
+            myFile = SD.open("index2.txt");
+            if (myFile) {
+              while (myFile.available()) {
+                char read = myFile.read();
+                client.print((char)read);
+              }
+              myFile.close();
+            } else {
+              Serial.println("EEND");
+            }
+            
+//            client.println("<br /><div />");
+//            client.print("ZP01 read value: ");
+//            client.print(ZP01_value);
+//            client.println("</div /><br />");
+//            client.println("  </body>\n</html>");
 //            myFile = SD.open("index2.txt");
 //            if (myFile) {
 //              while (myFile.available()) {
@@ -197,7 +236,7 @@ void loop() {
 //            }
           } else {
             // if the file didn't open, print an error:
-            Serial.println("Index1 error");
+            Serial.println("ERST");
           }
 //          client.println("<html>");
 //          client.print("ZPH01 read value: ");
@@ -231,7 +270,7 @@ void loop() {
     }
     delay(1);
     client.stop();
-    Serial.println("client disconnected");
+    Serial.println("DISC");
   }
   else
   {

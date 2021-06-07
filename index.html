@@ -12,10 +12,12 @@ Refresh: 30 -->
            
       function draw() {
         var canvas = document.getElementById('plot');
-
-        var values = [10, 5, 3, 8, 10, 5, 5, 6, 7];
+        var values_raw = [10, 5, 3, 8, 10, 5, 5, 6, 7];
+        var values = values_raw //.map(function(x) {
+        //   return x * 10;
+        // });
         var lines = values.length;
-        var max_value = Math.floor(Math.max(...values));
+        var max_value = Math.ceil(Math.max(...values));
         var min_value = Math.min(...values)
         var frag = canvas.clientWidth / (lines-1);
         var scale = canvas.clientHeight;
@@ -72,7 +74,12 @@ Refresh: 30 -->
     </div>
     <canvas id="plot" width="500" height="250"></canvas><br>
     <div id="samples" style="float: left; margin-left: 20px;">
+    </div><br>
+    <h4 style="margin-left: 50px">Air quality index readings</h4>
+    <div id="ZP01_values" style="float:left; margin-left: 5px">
     </div>
-    
+    <canvas id="ZP01_plot" width="500" height="250"></canvas><br>
+    <div id="ZP01_samples" style="float: left; margin-left: 20px;">
+    </div>
   </body>
 </html>
