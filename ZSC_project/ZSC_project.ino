@@ -14,6 +14,7 @@
 
 #define ZP01_A_PIN          4
 #define ZP01_B_PIN          5
+#define ZP01_DATA_LEN       3
 
 #define SHTC3_MSG_LEN       6
 
@@ -24,7 +25,7 @@
 
 uint8_t SHTC3_MEAS_COMM[SHTC3_MSG_LEN]= {0x7C, 0xA2};
 
-uint8_t ZP01_value;
+//uint8_t ZP01_value;
 
 SoftwareSerial ZPH01_serial(2, 3);  // RX, TX
 //uint8_t SHTC3_buffer[SHTC3_MSG_LEN];
@@ -65,7 +66,6 @@ void writeReadingToFile(char* fileName, char* data, uint8_t dataLen) {
     file.seek(fileIndex*dataLen);
     file.println(data);
     file.close();
-    fileIndex = (fileIndex+1)%FILE_MAX_SAMPLES_NO;
   } else {
     Serial.print("ESDZPH01 ");
     Serial.println(fileName);
@@ -86,9 +86,14 @@ void readSensors(void)
       writeReadingToFile(ZPH01_fileName, ZPH01_value, ZPH01_DATA_LEN);
       
       // read from ZP01
-//      int val1 = digitalRead(ZP01_A_PIN);
-//      int val2 = digitalRead(ZP01_B_PIN);
+      int val1 = digitalRead(ZP01_A_PIN);
+      int val2 = digitalRead(ZP01_B_PIN);
 //      ZP01_value = (val1<<1)+val2;
+      char ZP01_val[3];
+      sprintf(ZP01_val, "%u", (val1<<1)+val2);
+      writeReadingToFile(ZP01_fileName, ZP01_val, ZP01_DATA_LEN);
+
+      fileIndex = (fileIndex+1)%FILE_MAX_SAMPLES_NO;
 //      sprintf(buffer, "Received messege from ZP01: %u \r\n", ZP01_value);
 //      Serial.print(buffer);
 
@@ -188,7 +193,7 @@ void setup() {
   }
   
   server.begin();
-  Serial.println("Ready");
+  Serial.println("RD");
 }
 
 void loop() {
@@ -217,6 +222,8 @@ void loop() {
             myFile.close();
 
             sendReadingsFromFileToEthernet(client, ZPH01_fileName, ZPH01_DATA_LEN);
+            client.print("];\nvar ZP01=[");
+            sendReadingsFromFileToEthernet(client, ZP01_fileName, ZP01_DATA_LEN);
             
             myFile = SD.open("index2.txt");
             if (myFile) {
@@ -228,22 +235,11 @@ void loop() {
             } else {
               Serial.println("EEND");
             }
-            
-//            client.println("<br /><div />");
-//            client.print("ZP01 read value: ");
-//            client.print(ZP01_value);
-//            client.println("</div /><br />");
 //            client.println("  </body>\n</html>");
           } else {
             Serial.println("ERST");
           }
 //          client.println("<html>");
-//          client.print("ZPH01 read value: ");
-//          client.print(ZPH01_value);
-//          client.println("<br />");
-//          client.print("ZP01 read value: ");
-//          client.print(ZP01_value);
-//          client.println("<br />");
 //          client.print("SHTC3 read temperature raw: ");
 //          client.print(SHTC3_temp_raw);
 //          client.println("<br />");
