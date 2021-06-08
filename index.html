@@ -50,13 +50,14 @@ Refresh: 30 -->
         document.getElementById(samples_name).appendChild(node2);
         document.getElementById(sensor_name + '_sample_0').style.marginLeft = "22px";
 
-        for (var i=0;i<=max_value;i+=2) {
+        var values_no = 5.0;
+        for (var i=0;i<=values_no;i++) {
           var node = document.createElement("small");
-          node.innerHTML = max_value - i;
+          node.innerHTML = Math.round((max_value - i*max_value/values_no)*10)/10;
           node.id = 'value_' + String(i/2);
           node.style.position = "relative";
           node.style.left = "20px";
-          node.style.top = String((i*3/5)*scale/(max_value+1)+10) + "px"
+          node.style.top = String((i*1/2)*scale/values_no+10) + "px"
           document.getElementById(values_name).appendChild(node); 
           document.getElementById(values_name).appendChild(document.createElement("br"));
         }
@@ -69,8 +70,8 @@ Refresh: 30 -->
         var hum = [3, 3, 2, 2, 1, 0, 1, 3];
         drawForSensor("ZPH01", ZPH01, function(x) { return x*1; });
         drawForSensor("ZP01", ZP01, function(x) { return x; });
-        drawForSensor("temp", temp, function(x) { return x; });
-        drawForSensor("hum", hum, function(x) { return x; });
+        drawForSensor("temp", temp, function(x) { return -45+175.0*x/65535; });
+        drawForSensor("hum", hum, function(x) { return 100.0*x/65535; });
       }
 
     </script>
